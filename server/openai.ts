@@ -1,10 +1,11 @@
 let _openai: any = null;
 
 async function getClient() {
-  if (!process.env.OPENAI_API_KEY) return null;
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!apiKey) return null;
   if (!_openai) {
     const { default: OpenAI } = await import("openai");
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    _openai = new OpenAI({ apiKey });
   }
   return _openai;
 }
