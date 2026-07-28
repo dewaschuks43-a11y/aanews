@@ -92,6 +92,76 @@ Category auto-detection runs on title + description text. Articles are upserted 
 - **Production (Railway)**: Multi-stage Dockerfile builds the app; `railway.toml` sets `startCommand = "node dist/server/index.js"`
 - **Health check**: `/api/health` returns `{ ok: true }`
 
+## Brand Colors
+- **Navy (primary background/header)**: `#0A1628`
+- **Red (accent, logo, breaking badge)**: `#CC0000`
+- **AgricAfric green (sister app)**: `#16A249` — use when visually connecting the two apps
+
+## Features to Build
+
+### Admin Panel — Missing Sections
+The current admin panel only has RSS fetch + OpenAI cost stats. These sections still need to be built:
+
+1. **Article Management** — Table of all articles with ability to:
+   - Mark/unmark as Featured (featured articles appear prominently on Home)
+   - Delete an article (removes from DB)
+   - Edit title/excerpt manually (for corrections)
+   - Filter by category or source
+
+2. **Newsletter Subscriber Management** — Table showing:
+   - All subscriber emails and sign-up date
+   - Toggle active/inactive per subscriber
+   - Delete a subscriber
+   - Total count visible on the stats dashboard (already wired up in stats API)
+
+3. **RSS Source Toggles** — Currently all 8 sources are hardcoded in `server/rss.ts`. Build an admin UI to:
+   - Enable/disable individual sources without editing code
+   - See last fetch time and article count per source
+   - Requires a new `aanews_rss_sources` table in the schema
+
+4. **Content Moderation Queue** — Needed once comments/reactions are live:
+   - Review flagged comments before publishing
+   - Ban abusive users by email or IP
+
+### Reader Engagement — Comments & Reactions (Phased)
+Nigerian readers are very vocal. Nairaland and Linda Ikeji built massive audiences through community discussion. AA+News should follow the same path, carefully.
+
+**Phase 1 — Reactions (build first, no moderation needed):**
+- Simple emoji-style reactions per article: e.g. 👍 Insightful / 😲 Surprising / 😡 Outraged / 🤔 Mixed
+- Store counts in a new `aanews_reactions` table (article_id, reaction_type, count)
+- No user account needed — use browser fingerprint or IP to prevent spam
+- Show reaction totals on article cards and article detail page
+- Zero moderation burden
+
+**Phase 2 — Disqus Comments (when traffic grows):**
+- Embed Disqus comment widget on article detail pages
+- Free, handles spam filtering + moderation tools automatically
+- Nigerian audience already familiar with it from Linda Ikeji's blog
+- One script tag — no backend changes needed
+
+**Phase 3 — Native Comments (if platform becomes serious):**
+- Build own comment system with AI moderation (reuse AgricAfric's OpenAI content safety logic)
+- Requires user accounts (email registration or Google OAuth)
+- Full control over data and brand experience
+
+### Image Handling — Branded SVG Placeholders
+Articles with no real image currently fall back to Unsplash external URLs per category. Replace these with:
+- Inline SVG placeholders served by the app itself (zero external dependency)
+- Show the category name as text inside the placeholder (e.g. "ECONOMY", "AGRICULTURE")
+- Use AA+News brand colors: dark navy `#0A1628` background, red `#CC0000` accent, white text
+- Makes image-less cards look intentional and branded, not broken
+
+### SEO & Growth
+- `<title>` and `<meta description>` per article page (currently generic)
+- Open Graph tags for WhatsApp/Twitter link previews (huge in Nigeria)
+- Sitemap.xml generated from articles for Google indexing
+- "Share on WhatsApp" button on articles (WhatsApp is the primary sharing channel in Nigeria)
+
+### Future Considerations
+- **Push notifications** — browser push for breaking news (requires service worker)
+- **Audio summaries** — text-to-speech for article summaries (accessibility + commuter use)
+- **Journalist profiles** — bylines and contributor pages if humans start writing for the platform
+
 ## Key Decisions & Gotchas
 1. **WebSocket DB driver only** — `drizzle-orm/neon-serverless` with `neonConfig.webSocketConstructor = ws`. HTTP driver (`drizzle-orm/neon-http`) has a known bug returning wrong values for booleans and arrays.
 2. **ESM modules** — `package.json` has `"type": "module"`. All imports use `.js` extensions even for `.ts` files.
