@@ -123,6 +123,43 @@ The current admin panel only has RSS fetch + OpenAI cost stats. These sections s
    - Review flagged comments before publishing
    - Ban abusive users by email or IP
 
+### Staff Authentication System (Build Before Bringing On Team)
+Replace the current single `ADMIN_PASSWORD` env var with a proper multi-user login system. **Do NOT use Google OAuth** — it requires Google Console setup which is painful and was deliberately avoided.
+
+**Use email + password only**, exactly like AgricAfric's auth system (bcrypt + Passport.js local strategy + express-session).
+
+**Database table needed — `aanews_users`:**
+```
+id (serial PK)
+email (text, unique)
+passwordHash (text — bcrypt)
+role (text — 'superadmin' | 'editor' | 'writer')
+isActive (boolean — false = suspended, can't log in)
+createdAt (timestamp)
+```
+
+**Three roles:**
+| Role | Permissions |
+|---|---|
+| `superadmin` | Everything — manage staff, add/remove users, full admin access |
+| `editor` | Feature/unfeature articles, delete, manage newsletter, trigger RSS fetch |
+| `writer` | Submit draft articles only (future, when manual submission is added) |
+
+**How staff management works:**
+- Super admin logs in at `/admin` → sees a "Staff" tab
+- Can add a new staff member by entering their email + temporary password + role
+- Staff member logs in with those credentials and should change password on first login
+- Super admin can deactivate (`isActive = false`) any staff member instantly — they can no longer log in
+- Super admin can delete a staff member entirely
+
+**Migration path from current system:**
+- On first startup after this feature is built, if no users exist in `aanews_users`, show a "Create first admin account" setup screen
+- This creates the first superadmin account
+- After that, all access goes through the login system
+- The `ADMIN_PASSWORD` env var is no longer needed (can be removed)
+
+**Session handling:** Use `express-session` with `connect-pg-simple` to store sessions in the database (same pattern as AgricAfric). Set `SESSION_SECRET` as a secret env variable.
+
 ### Reader Engagement — Comments & Reactions (Phased)
 Nigerian readers are very vocal. Nairaland and Linda Ikeji built massive audiences through community discussion. AA+News should follow the same path, carefully.
 
