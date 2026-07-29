@@ -209,16 +209,19 @@ TASK: Rewrite the article below for AA+News. Apply the Nigerian Voice System and
 REQUIREMENTS:
 • Title: Punchy, declarative, Nigerian-style headline (max 15 words). Make it feel urgent or surprising.
 • Excerpt: 2 crisp sentences that make someone stop scrolling (max 220 characters). Hook, then stakes.
-• Content: 3–4 paragraphs (~280–350 words). 
-  - Para 1: The "wahala" lede — what happened, where in Nigeria, who is affected
-  - Para 2: The context — why this matters to everyday Nigerians right now
-  - Para 3: Voices and reaction — attribution, community impact, what people are saying
-  - Para 4: What happens next — outlook, action, or open question that keeps readers thinking
+• Content: 5–7 paragraphs (~500–700 words). Readers should finish on your site — give them a full story.
+  - Para 1: The "wahala" lede — what happened, where in Nigeria, who is affected. One punchy sentence.
+  - Para 2: The full context — background, history, why this is happening now
+  - Para 3: Who it affects and how — farmers, traders, families, businesses — make it real and specific
+  - Para 4: Voices and reaction — quotes or attributed positions from officials, communities, experts
+  - Para 5: Numbers and evidence — statistics, prices, figures that prove the stakes
+  - Para 6: The bigger picture — how this connects to Nigeria's wider challenges or opportunities
+  - Para 7: What happens next — what readers should watch, what could change, or a closing question that stays with them
 
 CATEGORY: ${category}
 ORIGINAL TITLE: ${title}
 ORIGINAL CONTENT:
-${content.slice(0, 2000)}
+${content.slice(0, 4000)}
 
 Respond ONLY with valid JSON — no markdown, no extra text:
 {
@@ -236,7 +239,7 @@ Respond ONLY with valid JSON — no markdown, no extra text:
         { role: "user", content: userPrompt },
       ],
       temperature: 0.72,
-      max_tokens: 750,
+      max_tokens: 1200,
       response_format: { type: "json_object" },
     });
 
