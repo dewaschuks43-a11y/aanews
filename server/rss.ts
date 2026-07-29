@@ -10,14 +10,38 @@ const parser = new Parser({
 });
 
 const RSS_SOURCES = [
+  // ── Tier 1: Hard news & investigative ──────────────────────────────────
   { name: "Punch", url: "https://punchng.com/feed/", defaultCategory: "Breaking" },
   { name: "Vanguard", url: "https://www.vanguardngr.com/feed/", defaultCategory: "Politics" },
   { name: "Channels TV", url: "https://www.channelstv.com/feed/", defaultCategory: "Breaking" },
-  { name: "BusinessDay", url: "https://businessday.ng/feed/", defaultCategory: "Business" },
   { name: "Premium Times", url: "https://www.premiumtimesng.com/feed", defaultCategory: "Politics" },
   { name: "ThisDay", url: "https://www.thisdaylive.com/index.php/feed/", defaultCategory: "Breaking" },
   { name: "Leadership", url: "https://leadership.ng/feed/", defaultCategory: "Politics" },
   { name: "Daily Trust", url: "https://dailytrust.com/feed/", defaultCategory: "Breaking" },
+  { name: "Sahara Reporters", url: "https://saharareporters.com/rss.xml", defaultCategory: "Politics" },
+  { name: "Daily Post", url: "https://dailypost.ng/feed", defaultCategory: "Breaking" },
+  { name: "Tribune Online", url: "https://tribuneonlineng.com/feed", defaultCategory: "Politics" },
+
+  // ── Tier 2: Broadcast TV news ───────────────────────────────────────────
+  { name: "BusinessDay", url: "https://businessday.ng/feed/", defaultCategory: "Business" },
+  { name: "Arise TV", url: "https://www.arise.tv/feed", defaultCategory: "Breaking" },
+  { name: "AIT Live", url: "https://www.ait.live/feed", defaultCategory: "Breaking" },
+  { name: "TVC News", url: "https://www.tvcnews.tv/rss", defaultCategory: "Breaking" },
+
+  // ── Tier 3: Business & finance ─────────────────────────────────────────
+  { name: "Nairametrics", url: "https://www.nairametrics.com/feed", defaultCategory: "Economy" },
+
+  // ── Tier 4: Agriculture (AgricAfric focus) ─────────────────────────────
+  { name: "Agriculture Nigeria", url: "https://www.agriculturenigeria.com/feed", defaultCategory: "Agriculture" },
+  { name: "Farming Farmers Farms", url: "https://farmingfarmersfarms.com/feed", defaultCategory: "Agriculture" },
+
+  // ── Tier 5: Viral, social & entertainment ──────────────────────────────
+  { name: "Pulse Nigeria", url: "https://www.pulse.ng/news.rss", defaultCategory: "Breaking" },
+  { name: "Pulse Entertainment", url: "https://www.pulse.ng/entertainment.rss", defaultCategory: "Entertainment" },
+  { name: "Information Nigeria", url: "https://www.informationng.com/feed", defaultCategory: "Viral" },
+  { name: "Instablog9ja", url: "https://instablog9ja.com/feed", defaultCategory: "Viral" },
+  { name: "BellaNaija", url: "https://www.bellanaija.com/feed", defaultCategory: "Celebrity" },
+  { name: "The NET", url: "https://www.thenet.ng/feed", defaultCategory: "Entertainment" },
 ];
 
 function slugify(text: string): string {
@@ -98,17 +122,31 @@ async function fetchFullArticleText(url: string): Promise<string | null> {
 
     // Try common article content wrappers used by Nigerian news sites
     const contentPatterns = [
-      // Article body containers
+      // Article body containers (generic, works across many sites)
       /<article[^>]*>([\s\S]*?)<\/article>/i,
-      /<div[^>]+class="[^"]*(?:article-body|article-content|story-body|post-content|entry-content|content-body|article__body|td-post-content|tdb-block-inner)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-      // Punch, Premium Times patterns
+      /<div[^>]+class="[^"]*(?:article-body|article-content|story-body|post-content|entry-content|content-body|article__body|tdb-block-inner)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // Punch, Premium Times
       /<div[^>]+class="[^"]*(?:post-content|single-post-content|article-detail)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-      // Vanguard pattern
+      // Vanguard
       /<div[^>]+class="[^"]*story-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-      // BusinessDay pattern
+      // BusinessDay
       /<div[^>]+class="[^"]*post-body[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
-      // ThisDay / Leadership
+      // ThisDay / Leadership / Tribune / Daily Post (WordPress td- theme)
       /<div[^>]+class="[^"]*td-post-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // Sahara Reporters (Drupal)
+      /<div[^>]+class="[^"]*field-item[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // Nairametrics / Business Post (WordPress Elementor)
+      /<div[^>]+class="[^"]*elementor-widget-theme-post-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // Arise TV / AIT / TVC (broadcast CMS patterns)
+      /<div[^>]+class="[^"]*(?:single-content|news-content|article-text|story-text|main-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // Pulse Nigeria (AMP / custom CMS)
+      /<div[^>]+class="[^"]*(?:pulse-content|article__content|content__body)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // BellaNaija / Information Nigeria / Instablog (WordPress standard)
+      /<div[^>]+class="[^"]*(?:entry-content|post-entry|the-content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // Agriculture Nigeria / Farming Farmers Farms (niche WordPress)
+      /<div[^>]+class="[^"]*(?:blog-content|farm-content|agric-content|content-area)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
+      // The NET (entertainment WordPress)
+      /<div[^>]+class="[^"]*(?:jeg_inner_content|jeg_post_content)[^"]*"[^>]*>([\s\S]*?)<\/div>/i,
     ];
 
     let extracted = "";
@@ -201,7 +239,7 @@ export async function fetchAllFeeds(): Promise<{ fetched: number; saved: number;
   for (const source of RSS_SOURCES) {
     try {
       const feed = await parser.parseURL(source.url);
-      const items = feed.items.slice(0, 10).filter(i => i.title);
+      const items = feed.items.slice(0, 5).filter(i => i.title);
 
       // Detect which RSS images are generic (same URL repeated across articles)
       const rssImages = items.map(i => extractRssImage(i));
