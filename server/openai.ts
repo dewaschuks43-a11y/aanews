@@ -258,6 +258,94 @@ Respond ONLY with valid JSON — no markdown, no extra text:
   }
 }
 
+// ─── AI Desk: generate original brand-owned article from a prompt ─────────
+export interface GenerateResult {
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  inputTokens: number;
+  outputTokens: number;
+}
+
+export async function generateOriginalArticle(
+  prompt: string,
+  category: string,
+  contextArticles: Array<{ title: string; content: string }> = []
+): Promise<GenerateResult> {
+  const client = await getClient();
+  if (!client) throw new Error("OpenAI client not available — check AI_INTEGRATIONS_OPENAI_API_KEY");
+
+  const categoryGuide = CATEGORY_GUIDES[category] || "";
+
+  const contextBlock = contextArticles.length > 0
+    ? `\n\nRECENT RELATED ARTICLES FROM AA+NEWS DATABASE (use as background context, do not copy):\n${
+        contextArticles.slice(0, 5).map((a, i) =>
+          `[${i + 1}] ${a.title}\n${a.content.slice(0, 300)}...`
+        ).join("\n\n")
+      }`
+    : "";
+
+  const userPrompt = `
+${categoryGuide}
+
+TASK: Write a BRAND-NEW, ORIGINAL article for AA+News based on the editor's brief below.
+This is NOT a rewrite — it is original journalism in the AA+News voice.
+It will be published under the "AA+News AI Desk" byline with NO external source attribution.
+The article must be fully self-contained, factual, and grounded in known realities.
+
+EDITOR'S BRIEF:
+${prompt}
+${contextBlock}
+
+REQUIREMENTS:
+• Title: Bold, original AA+News headline (max 15 words). Must feel like breaking editorial, not a blog post.
+• Excerpt: 2 sentences that make someone stop mid-scroll (max 220 chars). Hook + stakes.
+• Category: Best-fit from — Breaking, Politics, Economy, Agriculture, Business, Health, Entertainment, Sports, Tech, Lifestyle, Viral, Celebrity
+• Content: 5–7 tight paragraphs (500–700 words) following this structure:
+  - Para 1: Declarative lede — the situation, where, who is affected
+  - Para 2: Full background — why this is happening, the history
+  - Para 3: Ground-level impact — how everyday Nigerians feel this
+  - Para 4: Voices & evidence — statistics, expert positions, community responses (infer from known context if needed, mark as "analysts say" or "industry observers note")
+  - Para 5: Competing perspectives — acknowledge complexity, no false balance
+  - Para 6: The broader picture — what this signals for Nigeria
+  - Para 7: What to watch — forward-looking close that keeps readers invested
+
+Respond ONLY with valid JSON — no markdown, no extra text:
+{
+  "title": "...",
+  "excerpt": "...",
+  "category": "...",
+  "content": "..."
+}
+`.trim();
+
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: NIGERIAN_VOICE_SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
+    temperature: 0.78,
+    max_tokens: 1400,
+    response_format: { type: "json_object" },
+  });
+
+  const result = JSON.parse(response.choices[0].message.content || "{}");
+  const usage = response.usage ?? { prompt_tokens: 0, completion_tokens: 0 };
+
+  if (!result.title || !result.content) throw new Error("AI returned incomplete article");
+
+  return {
+    title: result.title,
+    excerpt: result.excerpt || result.content.slice(0, 200) + "...",
+    content: result.content,
+    category: result.category || category,
+    inputTokens: usage.prompt_tokens,
+    outputTokens: usage.completion_tokens,
+  };
+}
+
 export function estimateCostUsd(inputTokens: number, outputTokens: number): string {
   const cost = (inputTokens / 1_000_000) * 0.15 + (outputTokens / 1_000_000) * 0.60;
   return cost.toFixed(6);
