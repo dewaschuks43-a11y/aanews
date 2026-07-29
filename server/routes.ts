@@ -5,9 +5,11 @@ import {
   getArticleCount,
   subscribeNewsletter,
   getUsageStats,
+  insertArticle,
 } from "./storage.js";
 import { fetchAllFeeds } from "./rss.js";
 import { getLiveMarketPrices } from "./marketPrices.js";
+import { generateOriginalArticle, estimateCostUsd } from "./openai.js";
 import { Resend } from "resend";
 import { z } from "zod";
 
@@ -124,6 +126,71 @@ export function registerRoutes(app: Express) {
     try {
       const stats = await getUsageStats();
       res.json(stats);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── AI Desk: generate a brand-owned original article ──────────────────
+  app.post("/api/admin/generate-article", requireAdmin, async (req, res) => {
+    try {
+      const { prompt, category } = z.object({
+        prompt: z.string().min(10).max(2000),
+        category: z.string().default("Breaking"),
+      }).parse(req.body);
+
+      // Pull recent articles in this category as context
+      const contextArticles = await getArticles({ category, limit: 6 });
+
+      const result = await generateOriginalArticle(
+        prompt,
+        category,
+        contextArticles.map(a => ({ title: a.title, content: a.content }))
+      );
+
+      res.json(result);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── AI Desk: publish (or save as draft) a generated article ───────────
+  app.post("/api/admin/publish-generated", requireAdmin, async (req, res) => {
+    try {
+      const body = z.object({
+        title: z.string().min(1),
+        excerpt: z.string().min(1),
+        content: z.string().min(1),
+        category: z.string().min(1),
+        authorName: z.string().default("AA+News AI Desk"),
+        publishNow: z.boolean().default(true),
+      }).parse(req.body);
+
+      function slugify(text: string): string {
+        return text.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").trim().slice(0, 100);
+      }
+
+      const slug = slugify(body.title) + "-" + Date.now().toString().slice(-6);
+
+      const article = await insertArticle({
+        title: body.title,
+        slug,
+        excerpt: body.excerpt,
+        content: body.content,
+        category: body.category,
+        sourceName: "AA+News",
+        sourceUrl: null,
+        originalTitle: body.title,
+        isRewritten: false,
+        isOriginal: true,
+        isFeatured: false,
+        authorName: body.authorName,
+        status: body.publishNow ? "published" : "draft",
+        publishedAt: body.publishNow ? new Date() : null,
+        imageUrl: null,
+      });
+
+      res.json({ ok: true, article });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
